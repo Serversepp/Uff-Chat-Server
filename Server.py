@@ -14,7 +14,7 @@ class Connection_Handler():
         return self.socket.accept()
 
     def getclientnick(self, Client):
-        Client.send("nick".encode('UTF-8'))
+        #Client.send("nick".encode('UTF-8'))
         return Client.recv(1024)
         #TODO check if nick already in use
 
@@ -49,26 +49,29 @@ class Server:
         while self.running:
             new_client, new_address = self.Connection_Handler.waitforclient() # Waits until new client connects returns client and address
             #TODO may move to new thread
-            new_nickname = self.Connection_Handler.getclientnick(new_client)
-            self.client[new_client] = [new_nickname, new_address]  # May change for privacy reasons (IP)
-            self.brodcast(f"new user {new_nickname} has connected".encode('utf-8'))
-            new_client.send("hello".encode('utf-8'))  # Welcome message
+            try:
+                new_nickname = self.Connection_Handler.getclientnick(new_client).decode('utf-8').rstrip('\n')
+                self.clients[new_client] = [new_nickname, new_address]  # May change for privacy reasons (IP)
+                self.brodcast(f"new user {new_nickname} has connected\n".encode('utf-8'))
+                new_client.send("hello, welcome to Server\n".encode('utf-8'))  # Welcome message
 
-            self.clientthreads.append(threading.Thread(target=self.clienthandler, args=(new_client,)))
-            self.clientthreads[-1].start()  # Start newest thread
+                self.clientthreads.append(threading.Thread(target=self.clienthandler, args=(new_client,)))
+                self.clientthreads[-1].start()  # Start newest thread
+            except :
+                print("Autohentication ERROR")
 
     def clienthandler(self, client):
         while True:
             try:
                 new_message = client.recv(1024)
-                print(new_message)
-                self.brodcast(new_message)
+                self.brodcast(f"{self.clients.get(client)[0]} : {new_message.decode('utf-8')} \n".encode("utf-8"))
             except :
-                self.client.pop(client)
+                self.clients.pop(client)
                 break
 
     def brodcast(self,message):
         for client in self.clients:
+            print("NEUE NACHRICHT", message)
             client.send(message)
 
 
